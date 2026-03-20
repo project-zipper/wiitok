@@ -13,11 +13,11 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-     -  name: Install tools
-  run: |
-    sudo apt update
-    sudo apt install -y ffmpeg python3 jq
-    pip install yt-dlp
+      - name: Install tools
+        run: |
+          sudo apt update
+          sudo apt install -y ffmpeg python3
+          pip install yt-dlp
 
       - name: Clean old videos
         run: |
