@@ -1,8 +1,8 @@
-name: Update TikTok Feed (Full Replace)
+name: Update TikTok Feed (Stable)
 
 on:
   schedule:
-    - cron: "*/45 * * * *"   # every 45 minutes
+    - cron: "*/45 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -19,28 +19,26 @@ jobs:
           sudo apt install -y ffmpeg python3 jq
           pip install yt-dlp
 
-      # 🧹 DELETE ALL OLD VIDEOS
-      - name: Remove all MP4 files
+      - name: Remove old videos
         run: |
           rm -f *.mp4
           rm -f raw*.mp4
           rm -f list.json
 
-      # 🔥 Fetch REAL TikTok videos
-      - name: Download TikTok videos
+      - name: Download TikTok videos safely
         run: |
-          yt-dlp "ytsearch11:tiktok viral funny" -o "raw%(id)s.%(ext)s"
+          yt-dlp "ytsearch6:tiktok viral funny" -o "raw%(id)s.%(ext)s" || echo "Download errors ignored"
 
-      # 🎬 Convert ALL videos to Wii format
-      - name: Convert videos
+      - name: Convert videos safely
         run: |
           i=0
           for f in raw*.mp4; do
-            ffmpeg -i "$f" -vf scale=320:240 -c:v libx264 -preset ultrafast -c:a aac "video$i.mp4"
-            i=$((i+1))
+            if [ -f "$f" ]; then
+              ffmpeg -i "$f" -vf scale=320:240 -c:v libx264 -preset ultrafast -c:a aac "video$i.mp4"
+              i=$((i+1))
+            fi
           done
 
-      # 🧾 Generate list.json
       - name: Generate list.json
         run: |
           echo "[" > list.json
@@ -54,11 +52,11 @@ jobs:
           done
           echo "]" >> list.json
 
-      # 🚀 Push changes
       - name: Commit & push
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add .
+          git diff --cached --quiet || echo "No changes"
           git commit -m "Auto refresh TikTok feed (45 min)" || echo "No changes"
           git push
