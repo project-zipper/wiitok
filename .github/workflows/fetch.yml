@@ -1,4 +1,4 @@
-name: Update TikTok Feed (Fixed tiktok-feed Folder)
+name: Update Video Feed (YouTube Shorts)
 
 on:
   schedule:
@@ -10,8 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: Install tools
         run: |
@@ -19,28 +18,20 @@ jobs:
           sudo apt install -y ffmpeg python3 jq
           pip install yt-dlp
 
-      # 📁 Ensure tiktok-feed folder exists
       - name: Prepare folder
         run: |
           mkdir -p tiktok-feed
+          rm -f tiktok-feed/*.mp4 tiktok-feed/raw*.mp4 tiktok-feed/list.json
 
-      # 🧹 Clean old files in tiktok-feed
-      - name: Clean old files
+      # 🔥 15 SHORTS (safe amount)
+      - name: Download Shorts
         run: |
-          rm -f tiktok-feed/*.mp4
-          rm -f tiktok-feed/raw*.mp4
-          rm -f tiktok-feed/list.json
-
-      # 🔽 Download videos directly into tiktok-feed
-      - name: Download videos
-        run: |
-          yt-dlp "ytsearch5:youtube shorts funny vertical" \
+          yt-dlp "ytsearch15:youtube shorts funny vertical" \
           -f mp4 \
-          --max-filesize 20M \
+          --max-filesize 15M \
           -o "tiktok-feed/raw%(id)s.%(ext)s" \
-          || echo "Download failed but continuing"
+          || echo "Download errors ignored"
 
-      # 🎬 Convert videos inside tiktok-feed
       - name: Convert videos
         run: |
           i=0
@@ -55,26 +46,22 @@ jobs:
             fi
           done
 
-      # 🧾 Generate list.json in tiktok-feed
       - name: Generate list.json
         run: |
           echo "[" > tiktok-feed/list.json
           first=1
           for f in tiktok-feed/video*.mp4; do
-            if [ -f "$f" ]; then
-              name=$(basename "$f")
-              if [ $first -eq 0 ]; then echo "," >> tiktok-feed/list.json; fi
-              echo "{\"title\":\"$name\",\"file\":\"$name\"}" >> tiktok-feed/list.json
-              first=0
-            fi
+            name=$(basename "$f")
+            if [ $first -eq 0 ]; then echo "," >> tiktok-feed/list.json; fi
+            echo "{\"title\":\"$name\",\"file\":\"$name\"}" >> tiktok-feed/list.json
+            first=0
           done
           echo "]" >> tiktok-feed/list.json
 
-      # 🚀 Commit & push changes
       - name: Commit & push
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add tiktok-feed/
-          git commit -m "Update video feed (tiktok-feed folder)" || echo "No changes"
+          git commit -m "Update Shorts feed" || echo "No changes"
           git push
