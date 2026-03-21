@@ -1,4 +1,4 @@
-name: Update TikTok Feed (Stable)
+name: Update Video Feed (WORKING)
 
 on:
   schedule:
@@ -19,44 +19,56 @@ jobs:
           sudo apt install -y ffmpeg python3 jq
           pip install yt-dlp
 
-      - name: Remove old videos
+      # Clean everything
+      - name: Clean old files
         run: |
-          rm -f *.mp4
-          rm -f raw*.mp4
-          rm -f list.json
+          rm -f *.mp4 raw*.mp4 list.json
 
-      - name: Download TikTok videos safely
+      # 🔥 USE YOUTUBE SHORTS (stable)
+      - name: Download videos
         run: |
-          yt-dlp "ytsearch6:tiktok viral funny" -o "raw%(id)s.%(ext)s" || echo "Download errors ignored"
+          yt-dlp "ytsearch5:youtube shorts funny vertical" \
+          -f "mp4" \
+          --max-filesize 20M \
+          -o "raw%(id)s.%(ext)s" \
+          || echo "Download step failed but continuing"
 
-      - name: Convert videos safely
+      # Convert safely
+      - name: Convert videos
         run: |
           i=0
           for f in raw*.mp4; do
             if [ -f "$f" ]; then
-              ffmpeg -i "$f" -vf scale=320:240 -c:v libx264 -preset ultrafast -c:a aac "video$i.mp4"
+              ffmpeg -y -i "$f" \
+              -vf scale=320:240 \
+              -c:v libx264 -preset ultrafast \
+              -c:a aac \
+              -movflags +faststart \
+              "video$i.mp4" || true
               i=$((i+1))
             fi
           done
 
+      # Generate list.json safely
       - name: Generate list.json
         run: |
           echo "[" > list.json
           first=1
           for f in video*.mp4; do
-            name=$(basename "$f")
-            title="Video ${name%.*}"
-            if [ $first -eq 0 ]; then echo "," >> list.json; fi
-            echo "{\"title\":\"$title\",\"file\":\"$name\"}" >> list.json
-            first=0
+            if [ -f "$f" ]; then
+              name=$(basename "$f")
+              if [ $first -eq 0 ]; then echo "," >> list.json; fi
+              echo "{\"title\":\"$name\",\"file\":\"$name\"}" >> list.json
+              first=0
+            fi
           done
           echo "]" >> list.json
 
+      # Push changes
       - name: Commit & push
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add .
-          git diff --cached --quiet || echo "No changes"
-          git commit -m "Auto refresh TikTok feed (45 min)" || echo "No changes"
+          git commit -m "Update video feed" || echo "No changes"
           git push
